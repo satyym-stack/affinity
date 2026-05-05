@@ -30,3 +30,8 @@ class ThoughtResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PublicThoughtResponse(ThoughtResponse):
+    username: str
+    display_name: str

@@ -1,1 +1,12 @@
-# Add backend Python dependencies here.
+fastapi
+uvicorn
+sqlalchemy
+alembic
+psycopg[binary]
+pydantic-settings
+bcrypt
+python-jose[cryptography]
+email-validator
+pgvector
+openai
+sentence-transformers

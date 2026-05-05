@@ -2,17 +2,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.dependencies import get_current_user
 from app.db.session import get_db
-from app.features.thoughts.schemas import ThoughtCreate, ThoughtResponse, ThoughtUpdate
+from app.features.thoughts.schemas import (
+    PublicThoughtResponse,
+    ThoughtCreate,
+    ThoughtResponse,
+    ThoughtUpdate,
+)
 from app.features.thoughts.service import ThoughtService
 
 router = APIRouter(prefix="/thoughts", tags=["Thoughts"])
 service = ThoughtService()
-
-
-def get_current_user():
-    # temporary stub until auth is built
-    return {"id": 1}
 
 
 @router.post("", response_model=ThoughtResponse, status_code=status.HTTP_201_CREATED)
@@ -21,7 +22,7 @@ def create_thought(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    return service.create_thought(db, user_id=current_user["id"], payload=payload)
+    return service.create_thought(db, user_id=current_user.id, payload=payload)
 
 
 @router.get("/me", response_model=list[ThoughtResponse])
@@ -29,7 +30,15 @@ def list_my_thoughts(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    return service.list_user_thoughts(db, user_id=current_user["id"])
+    return service.list_user_thoughts(db, user_id=current_user.id)
+
+
+@router.get("/public", response_model=list[PublicThoughtResponse])
+def list_public_thoughts(
+    limit: int = 20,
+    db: Session = Depends(get_db),
+):
+    return service.list_public_thoughts(db, limit=limit)
 
 
 @router.get("/{thought_id}", response_model=ThoughtResponse)
@@ -42,7 +51,7 @@ def get_thought(
     if not thought:
         raise HTTPException(status_code=404, detail="Thought not found")
 
-    if thought.user_id != current_user["id"]:
+    if thought.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not allowed")
 
     return thought
@@ -59,7 +68,7 @@ def update_thought(
     if not thought:
         raise HTTPException(status_code=404, detail="Thought not found")
 
-    if thought.user_id != current_user["id"]:
+    if thought.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not allowed")
 
     return service.update_thought(db, thought, payload)
@@ -75,7 +84,7 @@ def delete_thought(
     if not thought:
         raise HTTPException(status_code=404, detail="Thought not found")
 
-    if thought.user_id != current_user["id"]:
+    if thought.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not allowed")
 
     service.delete_thought(db, thought)

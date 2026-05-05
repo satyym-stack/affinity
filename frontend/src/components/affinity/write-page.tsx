@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -10,20 +10,67 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { createThought } from '@/lib/thoughts-api';
+import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/tokens';
 
-export default function WritePage() {
-  const [mode, setMode] = useState('prompted');
+type WritePageProps = {
+  onThoughtSaved: () => void;
+};
+
+export default function WritePage({ onThoughtSaved }: WritePageProps) {
+  const { token } = useAuth();
   const [text, setText] = useState('');
-  const prompt = 'What are you willing to sacrifice for, and what are you not?';
+  const [submitAction, setSubmitAction] = useState<'draft' | 'published' | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  async function handleSubmit(status: 'draft' | 'published') {
+    const content = text.trim();
+
+    if (!token) {
+      setErrorMessage('Log in before saving a thought.');
+      setSuccessMessage('');
+      return;
+    }
+
+    if (!content) {
+      setErrorMessage('Write a thought before saving it.');
+      setSuccessMessage('');
+      return;
+    }
+
+    setSubmitAction(status);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      await createThought(
+        {
+          content,
+          status,
+          visibility: status === 'published' ? 'public' : 'private',
+          prompt_source: null
+        },
+        token
+      );
+      setText('');
+      setSuccessMessage(
+        status === 'published'
+          ? 'Thought published to the shared space.'
+          : 'Draft saved to your profile.'
+      );
+      onThoughtSaved();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Unable to save your thought.'
+      );
+    } finally {
+      setSubmitAction(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -31,56 +78,13 @@ export default function WritePage() {
         <CardHeader>
           <CardTitle className={cn('text-3xl', t.fg)}>Write</CardTitle>
           <CardDescription className={t.fgMuted}>
-            A quiet place to publish a raw thought.
+            {token
+              ? 'A quiet place to publish a raw thought.'
+              : 'Log in to save and publish thoughts.'}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6">
-          <Tabs value={mode} onValueChange={setMode}>
-            <TabsList className={t.tabList}>
-              <TabsTrigger value="prompted" className="rounded-xl">
-                Prompted
-              </TabsTrigger>
-              <TabsTrigger value="free" className="rounded-xl">
-                Free write
-              </TabsTrigger>
-              <TabsTrigger value="short" className="rounded-xl">
-                Short thought
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="prompted" className="mt-6 space-y-4">
-              <div className={cn('p-5', t.accentCard)}>
-                <div className={cn('mb-2 text-sm', 'text-app-violet-fg')}>
-                  Prompt
-                </div>
-                <div className={cn('text-lg', t.fg)}>{prompt}</div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="free" className="mt-6">
-              <div className={cn('p-5', t.innerLg, t.fgSoft)}>
-                Write anything that feels true right now.
-              </div>
-            </TabsContent>
-
-            <TabsContent value="short" className="mt-6">
-              <div className={cn('p-5', t.innerLg, t.fgSoft)}>
-                One sharp thought is enough.
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          <div className="flex flex-wrap gap-2">
-            {['Belief', 'Doubt', 'Memory', 'Question', 'Contradiction', 'Change'].map(
-              (chip) => (
-                <Badge key={chip} className={t.badge}>
-                  {chip}
-                </Badge>
-              )
-            )}
-          </div>
-
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -91,20 +95,40 @@ export default function WritePage() {
             )}
           />
 
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Badge className={t.badgeOk}>Public</Badge>
-              <span className={cn('text-sm', t.fgMuted)}>
-                Visible in the shared space
-              </span>
+          {(errorMessage || successMessage) && (
+            <div
+              className={cn(
+                'rounded-2xl border px-4 py-3 text-sm',
+                errorMessage
+                  ? 'border-red-400/30 bg-red-500/10 text-red-200'
+                  : 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100'
+              )}
+            >
+              {errorMessage || successMessage}
             </div>
+          )}
 
-            <div className="flex gap-3">
-              <Button variant="outline" className={t.btnOutline}>
-                Save draft
+          <div className="flex justify-end gap-3">
+            {!token && (
+              <Button asChild variant="outline" className={t.btnOutline}>
+                <Link href="/login">Log in</Link>
               </Button>
-              <Button className={t.btnPrimary}>Publish thought</Button>
-            </div>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => void handleSubmit('draft')}
+              disabled={submitAction !== null || !token}
+              className={t.btnOutline}
+            >
+              {submitAction === 'draft' ? 'Saving...' : 'Save draft'}
+            </Button>
+            <Button
+              onClick={() => void handleSubmit('published')}
+              disabled={submitAction !== null || !token}
+              className={t.btnPrimary}
+            >
+              {submitAction === 'published' ? 'Publishing...' : 'Publish thought'}
+            </Button>
           </div>
         </CardContent>
       </Card>

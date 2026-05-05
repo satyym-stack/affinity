@@ -1,23 +1,41 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useSyncExternalStore } from 'react';
 
 type Theme = 'dark' | 'light';
+
+const THEME_STORAGE_KEY = 'affinity-theme';
+const THEME_CHANGE_EVENT = 'affinity-theme-change';
 
 const ThemeContext = createContext<{ theme: Theme; toggle: () => void }>({
   theme: 'dark',
   toggle: () => {}
 });
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark');
+function getStoredTheme(): Theme {
+  return localStorage.getItem(THEME_STORAGE_KEY) === 'light' ? 'light' : 'dark';
+}
 
-  useEffect(() => {
-    const stored = localStorage.getItem('affinity-theme') as Theme | null;
-    const initial = stored ?? 'dark';
-    setTheme(initial);
-    applyTheme(initial);
-  }, []);
+function getServerTheme(): Theme {
+  return 'dark';
+}
+
+function subscribeToThemeChanges(callback: () => void) {
+  window.addEventListener('storage', callback);
+  window.addEventListener(THEME_CHANGE_EVENT, callback);
+
+  return () => {
+    window.removeEventListener('storage', callback);
+    window.removeEventListener(THEME_CHANGE_EVENT, callback);
+  };
+}
+
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const theme = useSyncExternalStore(
+    subscribeToThemeChanges,
+    getStoredTheme,
+    getServerTheme
+  );
 
   function applyTheme(next: Theme) {
     if (next === 'dark') {
@@ -27,11 +45,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
   function toggle() {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
+    localStorage.setItem(THEME_STORAGE_KEY, next);
     applyTheme(next);
-    localStorage.setItem('affinity-theme', next);
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   }
 
   return (

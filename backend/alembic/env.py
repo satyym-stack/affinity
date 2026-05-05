@@ -1,6 +1,9 @@
 from logging.config import fileConfig
 from app.db.base import Base
+from app.features.embeddings.models import ThoughtEmbedding, UserEmbedding
+from app.features.map.models import UserMapPosition
 from app.features.thoughts.models import Thought
+from app.features.users.models import User
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool

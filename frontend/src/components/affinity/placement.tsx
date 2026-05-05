@@ -22,7 +22,7 @@ export default function Placement({ onContinue }: PlacementProps) {
             </Badge>
 
             <h2 className={cn('text-4xl font-semibold tracking-tight', t.fg)}>
-              You've entered the space.
+              You&apos;ve entered the space.
             </h2>
 
             <p className={cn('mt-4 max-w-md', t.fgSoft)}>

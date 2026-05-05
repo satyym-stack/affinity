@@ -9,16 +9,11 @@ import {
   User,
   Settings,
   Sun,
-  Moon
+  Moon,
+  LogOut
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/tokens';
 import { useTheme } from '@/lib/theme-context';
@@ -43,6 +38,8 @@ export default function AppShell({
   children
 }: AppShellProps) {
   const { theme, toggle } = useTheme();
+  const { logout, user } = useAuth();
+  const router = useRouter();
 
   const nav = [
     { id: 'home', label: 'Home', icon: Home },
@@ -54,7 +51,7 @@ export default function AppShell({
 
   return (
     <div className={t.page}>
-      <div className="mx-auto flex min-h-screen max-w-7xl gap-6 px-4 py-6 lg:px-6">
+      <div className="mx-auto flex min-h-screen max-w-[1800px] gap-6 px-4 py-6 lg:px-6 2xl:px-8">
         <aside
           className={cn(
             'hidden w-64 shrink-0 p-4 md:flex md:flex-col',
@@ -93,6 +90,14 @@ export default function AppShell({
           </nav>
 
           <div className="mt-auto pt-4">
+            {user && (
+              <div className={cn('mb-3 rounded-2xl px-3 py-3', t.inner)}>
+                <div className={cn('text-sm font-medium', t.fg)}>
+                  {user.display_name}
+                </div>
+                <div className={cn('text-xs', t.fgMuted)}>@{user.username}</div>
+              </div>
+            )}
             <button
               onClick={toggle}
               className={cn(
@@ -109,73 +114,23 @@ export default function AppShell({
                 {theme === 'dark' ? 'Light mode' : 'Dark mode'}
               </span>
             </button>
+            <button
+              onClick={() => {
+                logout();
+                router.push('/login');
+              }}
+              className={cn(
+                'mt-2 flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition',
+                t.navInactive
+              )}
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="text-sm font-medium">Logout</span>
+            </button>
           </div>
         </aside>
 
         <main className="min-w-0 flex-1">{children}</main>
-
-        <aside className="hidden w-80 shrink-0 space-y-4 xl:block">
-          <Card className={t.cardMd}>
-            <CardHeader>
-              <CardTitle className={cn('text-base', t.fg)}>
-                Selected profile
-              </CardTitle>
-              <CardDescription className={t.fgMuted}>
-                Why this dot is near you
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <div className={cn('font-medium', t.fg)}>Mira</div>
-                <div className={cn('mt-1 text-sm', t.fgMuted)}>Very near</div>
-              </div>
-              <p className={cn('text-sm', t.fgSoft)}>
-                You appear close because both of you write often about identity,
-                uncertainty, and emotional honesty.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {['identity', 'uncertainty', 'honesty'].map((tag) => (
-                  <Badge key={tag} className={t.badgeAccent}>
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-              <button
-                className={cn(
-                  'w-full px-4 py-2 text-sm font-medium transition',
-                  t.btnPrimary
-                )}
-              >
-                View full profile
-              </button>
-            </CardContent>
-          </Card>
-
-          <Card className={t.cardMd}>
-            <CardHeader>
-              <CardTitle className={cn('text-base', t.fg)}>
-                Your current signal
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {[
-                  'reflective',
-                  'values-driven',
-                  'ambiguity-friendly',
-                  'emotionally precise'
-                ].map((tag) => (
-                  <Badge key={tag} className={t.badgeAccent}>
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-              <p className={cn('text-sm', t.fgMuted)}>
-                Your position will keep evolving as you publish more thoughts.
-              </p>
-            </CardContent>
-          </Card>
-        </aside>
       </div>
     </div>
   );

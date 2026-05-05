@@ -1,19 +1,50 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/tokens';
-import { starterThoughts } from './data';
+import { listPublicThoughts, type Thought } from '@/lib/thoughts-api';
 
-type LandingProps = {
-  onStart: () => void;
-};
+export default function Landing() {
+  const [publicThoughts, setPublicThoughts] = useState<Thought[]>([]);
+  const [isLoadingThoughts, setIsLoadingThoughts] = useState(true);
 
-export default function Landing({ onStart }: LandingProps) {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPublicThoughts() {
+      try {
+        const thoughts = await listPublicThoughts(3);
+
+        if (!cancelled) {
+          setPublicThoughts(thoughts);
+        }
+      } catch {
+        if (!cancelled) {
+          setPublicThoughts([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingThoughts(false);
+        }
+      }
+    }
+
+    void loadPublicThoughts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const hoveredThought = publicThoughts[0]?.content;
+
   return (
     <div className={cn('landing-bg', t.page)}>
       <div className="mx-auto max-w-7xl px-6 py-8">
@@ -31,11 +62,11 @@ export default function Landing({ onStart }: LandingProps) {
           </div>
 
           <div className="flex gap-3">
-            <Button variant="ghost" className={t.btnGhost}>
-              Sign In
+            <Button asChild variant="ghost" className={t.btnGhost}>
+              <Link href="/login">Sign In</Link>
             </Button>
-            <Button onClick={onStart} className={t.btnPrimary}>
-              Get Started
+            <Button asChild className={t.btnPrimary}>
+              <Link href="/signup">Get Started</Link>
             </Button>
           </div>
         </header>
@@ -56,8 +87,10 @@ export default function Landing({ onStart }: LandingProps) {
             </p>
 
             <div className="mt-8 flex flex-wrap gap-4">
-              <Button onClick={onStart} size="lg" className={t.btnPrimary}>
-                Start Writing <ArrowRight className="ml-2 h-4 w-4" />
+              <Button asChild size="lg" className={t.btnPrimary}>
+                <Link href="/signup">
+                  Start Writing <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
 
               <Button size="lg" variant="outline" className={t.btnOutline}>
@@ -119,11 +152,11 @@ export default function Landing({ onStart }: LandingProps) {
 
                     <div className={cn('absolute bottom-6 left-6 right-6 p-4', t.overlayLabel)}>
                       <div className={cn('mb-2 text-sm', t.fgMuted)}>
-                        Hovered thought
+                        {hoveredThought ? 'Hovered thought' : 'Shared space'}
                       </div>
                       <p className={cn('text-sm leading-6', t.fgSoft)}>
-                        "I think the need to be known is stronger than the need
-                        to be impressive."
+                        {hoveredThought ??
+                          'Public thoughts from real users will appear here as the space fills.'}
                       </p>
                     </div>
                   </div>
@@ -131,14 +164,27 @@ export default function Landing({ onStart }: LandingProps) {
                   <div className="space-y-4 p-6">
                     <div>
                       <div className={cn('text-sm', t.fgMuted)}>
-                        Example thoughts
+                        Recent public thoughts
                       </div>
                       <div className="mt-3 space-y-3">
-                        {starterThoughts.slice(0, 3).map((thought) => (
-                          <div key={thought} className={cn('p-4 text-sm', t.inner, t.fg)}>
-                            {thought}
+                        {isLoadingThoughts && (
+                          <div className={cn('p-4 text-sm', t.inner, t.fgMuted)}>
+                            Loading public thoughts...
                           </div>
-                        ))}
+                        )}
+
+                        {!isLoadingThoughts && publicThoughts.length === 0 && (
+                          <div className={cn('p-4 text-sm', t.inner, t.fgMuted)}>
+                            No public thoughts yet.
+                          </div>
+                        )}
+
+                        {!isLoadingThoughts &&
+                          publicThoughts.map((thought) => (
+                            <div key={thought.id} className={cn('p-4 text-sm', t.inner, t.fg)}>
+                              {thought.content}
+                            </div>
+                          ))}
                       </div>
                     </div>
 

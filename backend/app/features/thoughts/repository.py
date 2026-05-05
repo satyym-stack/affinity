@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.features.thoughts.models import Thought
+from app.features.users.models import User
 
 
 class ThoughtRepository:
@@ -24,6 +25,47 @@ class ThoughtRepository:
             .order_by(Thought.created_at.desc())
         )
         return list(db.scalars(stmt).all())
+
+    def list_public(self, db: Session, limit: int = 20) -> list[Thought]:
+        stmt = (
+            select(Thought)
+            .where(Thought.visibility == "public", Thought.status == "published")
+            .order_by(Thought.created_at.desc())
+            .limit(limit)
+        )
+        return list(db.scalars(stmt).all())
+
+    def list_public_with_authors(self, db: Session, limit: int = 20) -> list[dict]:
+        stmt = (
+            select(
+                Thought,
+                User.username,
+                User.display_name,
+            )
+            .join(User, User.id == Thought.user_id)
+            .where(Thought.visibility == "public", Thought.status == "published")
+            .order_by(Thought.created_at.desc())
+            .limit(limit)
+        )
+
+        public_thoughts = []
+        for thought, username, display_name in db.execute(stmt).all():
+            public_thoughts.append(
+                {
+                    "id": thought.id,
+                    "user_id": thought.user_id,
+                    "content": thought.content,
+                    "status": thought.status,
+                    "visibility": thought.visibility,
+                    "prompt_source": thought.prompt_source,
+                    "created_at": thought.created_at,
+                    "updated_at": thought.updated_at,
+                    "username": username,
+                    "display_name": display_name,
+                }
+            )
+
+        return public_thoughts
 
     def update(self, db: Session, thought: Thought, **kwargs) -> Thought:
         for key, value in kwargs.items():
