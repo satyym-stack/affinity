@@ -8,15 +8,13 @@ from app.features.map.routes import router as map_router
 from app.features.matching.routes import router as matching_router
 from app.features.thoughts.routes import router as thoughts_router
 from app.features.users.routes import router as users_router
+from app.core.config import settings
 
 app = FastAPI(title="Affinity Backend")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
