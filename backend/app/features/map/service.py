@@ -4,6 +4,7 @@ import math
 
 from sqlalchemy.orm import Session
 
+from app.features.embeddings.service import EmbeddingService
 from app.features.map.repository import MapRepository
 from app.features.map.schemas import MapRecomputeResponse, MapUserResponse
 
@@ -13,8 +14,10 @@ ZERO_VECTOR_TOLERANCE = 1e-10
 class MapService:
     def __init__(self):
         self.repo = MapRepository()
+        self.embedding_service = EmbeddingService()
 
     def recompute_map_positions(self, db: Session) -> MapRecomputeResponse:
+        self.embedding_service.backfill_public_embeddings(db)
         rows = self.repo.list_users_with_embeddings(db)
 
         if len(rows) < 2:

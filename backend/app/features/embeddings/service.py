@@ -1,5 +1,9 @@
 """Embedding service layer."""
 
+import hashlib
+import math
+import re
+
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -18,6 +22,9 @@ class EmbeddingProvider:
     def embed_text(self, text: str) -> list[float]:
         if self.provider == "openai":
             return self._embed_with_openai(text)
+
+        if self.provider == "hash":
+            return self._embed_with_hash(text)
 
         return self._embed_with_local_model(text)
 
@@ -51,6 +58,22 @@ class EmbeddingProvider:
             self._local_model = SentenceTransformer(self.model_name)
 
         return self._local_model
+
+    def _embed_with_hash(self, text: str) -> list[float]:
+        vector = [0.0 for _ in range(self.dimensions)]
+        tokens = re.findall(r"[a-z0-9']+", text.lower())
+
+        for token in tokens:
+            digest = hashlib.sha256(token.encode("utf-8")).digest()
+            index = int.from_bytes(digest[:4], "big") % self.dimensions
+            sign = 1.0 if digest[4] % 2 == 0 else -1.0
+            vector[index] += sign
+
+        length = math.sqrt(sum(value * value for value in vector))
+        if length == 0:
+            return vector
+
+        return [value / length for value in vector]
 
 
 class EmbeddingService:
@@ -109,6 +132,19 @@ class EmbeddingService:
 
     def get_user_embedding(self, db: Session, user_id: int) -> UserEmbedding | None:
         return self.repo.get_user_embedding_by_user_id(db, user_id)
+
+    def backfill_public_embeddings(self, db: Session) -> int:
+        thoughts = self.thought_repo.list_public(db, limit=1000)
+        user_ids = set()
+
+        for thought in thoughts:
+            self.embed_thought(db, thought.id)
+            user_ids.add(thought.user_id)
+
+        for user_id in user_ids:
+            self.recompute_user_embedding(db, user_id)
+
+        return len(user_ids)
 
     def _average_vectors(self, vectors: list[list[float]]) -> list[float]:
         vector_count = len(vectors)
