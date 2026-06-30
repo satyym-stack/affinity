@@ -262,4 +262,4 @@ cd backend
 source .venv/bin/activate
 python -m compileall app
 ```
-
+The App is now live at: https://affinity-rust.vercel.app/
